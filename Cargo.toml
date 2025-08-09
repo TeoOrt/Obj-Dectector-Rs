@@ -5,10 +5,16 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
+config = "0.15.13"
 opencv = "0.95.1"
+serde = "1.0.219"
 
 
 [[test]]
 name = "sh_test"
 path = "test/profiler_test.rs"
+
+[[test]]
+name = "cam_test"
+path = "test/camera_config.rs"
 
