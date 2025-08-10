@@ -1,9 +1,8 @@
 use anyhow::Result;
 use camera_merger::camera::{
-    cam::{CameraFrame, frames_controller, operate_cameras, process_frame},
-    cam_cfg::CameraConfig,
-    cam_handler::{CameraBuilder, CameraHandler},
+    cam::{frames_controller, operate_cameras, CameraFrame}, cam_cfg::CameraConfig, cam_dection::VidObjDectector, cam_handler::{CameraBuilder, CameraHandler}
 };
+use onnxruntime::environment::Environment;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{
@@ -32,19 +31,16 @@ fn main() -> Result<()> {
                 .unwrap()
         })
         .collect();
+    let env = Environment::builder()
+        .with_name("test")
+        .with_log_level(onnxruntime::LoggingLevel::Verbose)
+        .build()?;
+    let obj_dectector = Arc::new(Mutex::new(VidObjDectector::new(&env)?));
 
     let key: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
     let frames_lock: Arc<Mutex<Vec<CameraFrame>>> = Arc::new(Mutex::new(Vec::new()));
     let (tx, rx): (Sender<CameraFrame>, Receiver<CameraFrame>) = mpsc::channel();
     frames_lock.lock().unwrap().reserve(60);
-
-    //thread copies
-    let hanlde_key = key.clone();
-    let handle_frames = frames_lock.clone();
-
-    let handle = thread::spawn(move || {
-        frames_controller(rx, handle_frames, hanlde_key);
-    });
 
     let clone_list: Vec<Args> = cameras
         .iter()
@@ -64,7 +60,9 @@ fn main() -> Result<()> {
         })
         .collect();
 
-    handle.join().unwrap();
+    // main thread
+    frames_controller(rx, frames_lock.clone(), key.clone(),obj_dectector.clone())?;
+
     for handle in thread_handles {
         handle.join().unwrap();
     }

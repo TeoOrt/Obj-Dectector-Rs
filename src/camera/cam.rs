@@ -1,9 +1,11 @@
 use anyhow::Result;
 use opencv::{highgui, prelude::*};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use super::cam_dection::VidObjDectector;
 use super::cam_handler::CameraHandler;
 
 #[derive(Debug, Clone)]
@@ -11,27 +13,39 @@ pub struct CameraFrame {
     pub timestamp: Instant,
     pub mat: Mat,
 }
+
 pub fn frames_controller(
     rx: Receiver<CameraFrame>,
     frame_holder: Arc<Mutex<Vec<CameraFrame>>>,
     a_key: Arc<Mutex<i32>>,
-) {
+    obj_dectector : Arc<Mutex<VidObjDectector>>
+) -> Result<()>{
     loop {
         let rcv_msg = rx.recv().unwrap();
-        process_frame(&rcv_msg, frame_holder.clone()).unwrap();
+        process_frame(&rcv_msg, frame_holder.clone(),obj_dectector.clone())?;
         if *a_key.lock().unwrap() == 'q' as i32 {
             break;
         }
     }
+    Ok(())
 }
 pub fn process_frame(
     frame: &CameraFrame,
     frame_holder: Arc<Mutex<Vec<CameraFrame>>>,
+    obj_dectector : Arc<Mutex<VidObjDectector>>
 ) -> Result<()> {
     let mut frame_lock = frame_holder.lock().unwrap();
     frame_lock.push(frame.clone());
     if frame_lock.len() > 10 {
+        let obj_dt  = obj_dectector.clone();
+        let mut lock_obj = obj_dt.lock().unwrap();
+        let _ : Vec<Result<()>> = frame_lock.iter().map(|cam| {
+            lock_obj.infer_with_model(&cam)
+        }).collect();
+
         frame_lock.clear();
+        //process frames 
+        
         println!("Flushing camera");
     }
     Ok(())
