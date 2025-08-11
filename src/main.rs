@@ -1,8 +1,10 @@
 use anyhow::Result;
 use camera_merger::camera::{
-    cam::{frames_controller, operate_cameras, CameraFrame}, cam_cfg::CameraConfig, cam_dection::VidObjDectector, cam_handler::{CameraBuilder, CameraHandler}
+    cam::{CameraFrame, frames_controller, operate_cameras},
+    cam_cfg::CameraConfig,
+    cam_dection::VidObjDectector,
+    cam_handler::{CameraBuilder, CameraHandler},
 };
-use onnxruntime::environment::Environment;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{
@@ -31,12 +33,7 @@ fn main() -> Result<()> {
                 .unwrap()
         })
         .collect();
-    let env = Environment::builder()
-        .with_name("test")
-        .with_log_level(onnxruntime::LoggingLevel::Verbose)
-        .build()?;
-    let obj_dectector = Arc::new(Mutex::new(VidObjDectector::new(&env)?));
-
+    let obj_dectector = Arc::new(Mutex::new(VidObjDectector::new("yolov5s.onnx")?));
     let key: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
     let frames_lock: Arc<Mutex<Vec<CameraFrame>>> = Arc::new(Mutex::new(Vec::new()));
     let (tx, rx): (Sender<CameraFrame>, Receiver<CameraFrame>) = mpsc::channel();
@@ -61,11 +58,11 @@ fn main() -> Result<()> {
         .collect();
 
     // main thread
-    frames_controller(rx, frames_lock.clone(), key.clone(),obj_dectector.clone())?;
+    frames_controller(rx, frames_lock.clone(), key.clone(), obj_dectector.clone())?;
 
     for handle in thread_handles {
         handle.join().unwrap();
     }
-
+    obj_dectector.clone().lock().unwrap().close();
     Ok(())
 }

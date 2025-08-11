@@ -1,98 +1,95 @@
-use std::ffi::CStr;
-use std::path::Path;
-
 use anyhow::Result;
-use onnxruntime::ndarray::{Array, IxDyn};
-use onnxruntime::tensor::OrtOwnedTensor;
-use onnxruntime::{environment::Environment, session::Session};
-use opencv::core::{CV_32F, Mat, MatTraitConst, Size};
-use opencv::flann::CS;
-use opencv::imgproc::{self, COLOR_BGR2RGB};
-
+use opencv::{
+    core::{Mat, MatTraitConst},
+    imgproc::{self},
+};
+use std::path::Path;
+use tract_onnx::{prelude::*, tract_core::ndarray::Array4};
+use crate::profilers::profile_structs::{HrtProfiler, Profile};
 use super::cam::CameraFrame;
 
-pub struct VidObjDectector<'a> {
-    model: Session<'a>,
+pub trait ImageProcessor {
+    fn infer_with_model(&mut self, cam: &CameraFrame) -> Result<()>;
 }
 
-// Definetly want to add profiler to this function not sure how good it is
-pub fn pre_process_frame(frame: &Mat) -> Result<Vec<f32>> {
-    let mut resized = Mat::default();
-    imgproc::resize(
-        &frame,
-        &mut resized,
-        Size::new(640, 640),
-        0.0,
-        0.0,
-        imgproc::INTER_LINEAR,
-    )?;
 
-    let mut rgb = Mat::default();
-    imgproc::cvt_color(
-        &resized,
-        &mut rgb,
-        COLOR_BGR2RGB,
-        0,
-        opencv::core::AlgorithmHint::ALGO_HINT_DEFAULT,
-    )?;
-
-    let mut rgb_f32 = Mat::default();
-    rgb.convert_to(&mut rgb_f32, CV_32F, 1.0 / 255.0, 0.0)?;
-
-    let total = (rgb_f32.rows() * rgb_f32.cols() * rgb_f32.channels()) as usize;
-    let data: Vec<f32> =
-        unsafe { std::slice::from_raw_parts(rgb_f32.ptr(0)? as *const f32, total).to_vec() };
-    // Convert from HWC to CHW
-    let (h, w, c) = (
-        rgb_f32.rows() as usize,
-        rgb_f32.cols() as usize,
-        rgb_f32.channels() as usize,
-    );
-    let mut chw_data = Vec::with_capacity(total);
-    for ch in 0..c {
-        for row in 0..h {
-            for col in 0..w {
-                let index = row * w * c + col * c + ch;
-                chw_data.push(data[index]);
-            }
-        }
-    }
-    Ok(chw_data)
+pub struct VidObjDectector {
+    model: SimplePlan<
+        TypedFact,
+        Box<dyn TypedOp + 'static>,
+        Graph<TypedFact, Box<dyn TypedOp + 'static>>,
+    >,
+    rgb :    Box<Mat>,
+    profiler : HrtProfiler,
+    chw_data : Box<Vec<f32>>
 }
 
-impl<'a> VidObjDectector<'a> {
-    pub fn new(environment: &'a Environment) -> Result<Self> {
-        let path_ref = Path::new("yolov5s.onnx");
+/// Basically a wrapper function for VidObjDectector
+impl VidObjDectector {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path_ref = path.as_ref();
         if !path_ref.exists() {
             return Err(anyhow::anyhow!(
                 "Configuration file not found: {}",
                 path_ref.display()
             ));
         }
-        let model = environment
-            .new_session_builder()?
-            .with_optimization_level(onnxruntime::GraphOptimizationLevel::Basic)?
-            .with_number_threads(4)?
-            .with_model_from_file("yolov5s.onnx")?;
-        Ok(Self { model })
+
+        let model = tract_onnx::onnx()
+            .model_for_path(path)?
+            .with_input_fact(0, InferenceFact::dt_shape(f32::datum_type(), tvec![1,3,640,640]))?
+            .into_optimized()?
+            .into_runnable()?;
+
+        let mut chw_data= Box::new(Vec::new());
+        chw_data.reserve(640*640*3);
+
+        Ok(Self { model , profiler : HrtProfiler::new(), rgb: Box::new(Mat::default()), chw_data})
     }
-    pub fn infer_with_model(&mut self, frame: &CameraFrame) -> Result<()> {
-        //profile this space
-        let input_tensor = pre_process_frame(&frame.mat)?;
-        let input_array = Array::from_shape_vec((1, 3, 640, 640), input_tensor)?;
 
-        // let input_names = self.model.inputs[0].name.clone();
-        let inputs = vec![input_array];
-        let outputs : Vec<OrtOwnedTensor<f32,_>> = self
-            .model
-            .run(inputs)?;
+    pub fn close(&self){
+        let stats = &self.profiler.get_stats();
+        println!("{:?}",stats);
+    }
 
-        // getting output
-        let out_tens = &outputs[0];
-        let shape = out_tens.shape();
 
-        println!("Ouput shape: {:?}",shape);
+    /// Converts mat struct to tensor
+    fn mat_to_tensor(&self, mat: &CameraFrame) -> Result<Tensor> {
 
-        todo!()
+    let mut rgb = *self.rgb.clone();
+    imgproc::cvt_color(&mat.mat, &mut rgb, imgproc::COLOR_BGR2RGB, 0,opencv::core::AlgorithmHint::ALGO_HINT_DEFAULT)?;
+
+    let (h, w) = (rgb.rows() as usize, rgb.cols() as usize);
+    let data: *const u8 = rgb.data();
+    let data_slices: &[u8] = unsafe {
+        std::slice::from_raw_parts(data, 3 * h * w)
+    };
+
+    let mut chw_data = *self.chw_data.clone();
+    for c in 0..3 {
+        for y in 0..h {
+            for x in 0..w {
+                let idx = (y * w + x) * 3 + c;
+                chw_data.push(data_slices[idx] as f32 / 255.0);
+            }
+        }
+    }
+
+    // Create ndarray in shape (1, 3, 640, 640)
+    let array = Array4::from_shape_vec((1, 3, h, w), chw_data)?;
+    Ok(array.into())
+    }
+}
+
+impl ImageProcessor for VidObjDectector {
+    fn infer_with_model(&mut self, cam: &CameraFrame) -> Result<()> {
+        self.profiler.start();
+        let input = self.mat_to_tensor(cam)?;
+        let _ = self.profiler.stop_and_record();
+
+        //might have to mode this out to python
+        let _ = self.model.run(tvec!(input.into()))?;
+        println!("We ran model");
+        Ok(())
     }
 }
