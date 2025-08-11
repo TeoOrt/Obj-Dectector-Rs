@@ -1,0 +1,7 @@
+[default]
+on_success = "echo passed!"
+
+[[watchers]]
+name = "tests"
+shell = "cargo test"
+

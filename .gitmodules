@@ -1,0 +1,3 @@
+[submodule "Pylearn"]
+	path = Pylearn
+	url = git@github.com:ultralytics/yolov5.git
