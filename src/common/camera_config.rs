@@ -2,22 +2,14 @@ use anyhow::{Context, Result};
 use config::{Config, File};
 use serde::Deserialize;
 use std::path::Path;
+use super::decode_dev_number;
 
 #[derive(Debug, Deserialize)]
 pub struct CameraConfig {
     pub device: Vec<String>,
 }
 
-fn decode_dev_number(path: &str) -> Option<i32> {
-    let pos = match path.rfind(|c: char| !c.is_ascii_digit()) {
-        Some(t) => t,
-        None => {
-            return None;
-        }
-    };
-    path[pos + 1..].parse().ok()
-}
-
+// ------> Constructors
 impl CameraConfig {
     /// Reads the configuration file and returns a new `CameraConfig`.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -39,14 +31,31 @@ impl CameraConfig {
             .context("Failed to deserialize CameraConfig")?;
         Ok(config)
     }
+}
+
+
+// -- Setters
+impl CameraConfig{
+    pub fn add_cameras(&mut self,list_of_cameras:Vec<String>) {
+        for cameras in list_of_cameras{
+            self.device.push(cameras);
+        }
+    }
+    pub fn remove_cameras(&mut self,camera :String){
+        self.device.retain(|dev| dev.as_str()!=camera.as_str());
+    }
+}
+
+// -- Getters
+impl CameraConfig{
 
     pub fn get_video_device_list(self) -> Result<Vec<i32>> {
         let res: Vec<i32> = self
             .device
             .iter()
             .map(|hey| {
-                let no_way = decode_dev_number(hey.as_str());
-                no_way.map_or(0, |f| f)
+                let dev_number = decode_dev_number(hey.as_str());
+                dev_number.map_or(0, |f| f)
             })
             .collect();
         Ok(res)

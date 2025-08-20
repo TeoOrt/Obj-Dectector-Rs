@@ -1,1 +1,3 @@
-pub mod profile_structs;
+mod profile_structs;
+
+pub use profile_structs::*;

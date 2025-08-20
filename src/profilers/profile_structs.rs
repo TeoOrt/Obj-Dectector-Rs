@@ -14,36 +14,35 @@ pub trait Profile {
     fn get_stats(&self) -> ProfileStats;
 }
 
+#[derive(Default)]
 pub struct HrtProfiler {
-    start: Instant,
-    stop: Instant,
+    start: Option<Instant>,
+    stop: Option<Instant>,
     time_stamps: Vec<Duration>,
-}
-
-impl HrtProfiler {
-    pub fn new() -> Self {
-        HrtProfiler {
-            start: Instant::now(),
-            stop: Instant::now(),
-            time_stamps: Vec::new(),
-        }
-    }
 }
 
 impl Profile for HrtProfiler {
     fn start(&mut self) -> u128 {
-        self.start = Instant::now();
-        self.time_stamps.push(self.start.elapsed());
-        return self.start.elapsed().as_micros();
+        self.start = Some(Instant::now());
+        // self.time_stamps.push(self.start.elapsed());
+        let start = self.start.unwrap().elapsed().as_micros();
+        return start;
     }
     fn stop(&mut self) -> u128 {
-        self.stop = Instant::now();
-        return self.stop.elapsed().as_micros();
+        let stop = Instant::now();
+        self.stop = Some(stop);
+        return stop.elapsed().as_micros();
     }
     fn stop_and_record(&mut self) -> u128 {
-        self.stop = Instant::now();
-        self.time_stamps.push(self.stop - self.start);
-        return self.stop.elapsed().as_micros();
+        let stop = Instant::now();
+        self.stop = Some(stop);
+        if self.start.is_none(){
+            eprintln!("Warning No start has been set, you may have a race condition");
+            return 0;
+        }
+        let start = self.start.unwrap();
+        self.time_stamps.push(stop-start);
+        return stop.elapsed().as_micros();
     }
 
     fn get_stats(&self) -> ProfileStats {
