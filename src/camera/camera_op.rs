@@ -27,7 +27,6 @@ impl CameraOperator {
             };
             let mut cam = camera.inner.lock().unwrap();
             let frame = &cam.get_frame()?;
-            cam.display_video(frame)?;
             tx.send(frame.clone())?;
         }
         Ok(())

@@ -1,4 +1,4 @@
-#![feature(portable_simd)]
+// #![feature(portable_simd)]
 
 use anyhow::Result;
 use camera_merger::{Camera, CameraBuilder, CameraConfig, CameraOperator, ImageReceiver, Start, Stop};
@@ -19,15 +19,17 @@ fn main() -> Result<()> {
                 .expect("Error")
         })
         .collect();
+    // Interesting fact for macos this code doesn;t show the window
     let mut reader = ImageReceiver::new();
+    reader.initialze();
     let mut operator = CameraOperator::new(cameras, reader.get_transmitter());
 
-    // Main operation
     operator.initialze();
+
     operator.start();
     reader.start();
-
     thread::sleep(Duration::new(60, 0));
     operator.stop();
+    reader.stop();
     Ok(())
 }

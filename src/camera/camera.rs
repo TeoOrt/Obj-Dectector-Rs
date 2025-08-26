@@ -33,6 +33,15 @@ impl CameraInner{
     pub fn display_video(&mut self, frame : &Mat)->Result<char>{
         highgui::imshow(&self.display_window.name, frame)?;
         let key_pressed = highgui::wait_key(1)? as u32;
-        Ok(char::from_u32(key_pressed).unwrap_or_default())
+        Ok(char::from_u32(key_pressed.into()).unwrap_or_default())
     }
 }
+
+/// Getters
+impl CameraInner{
+    pub fn get_display_name(self)-> String{
+        String::from(self.display_window.name)
+    }
+
+}
+
