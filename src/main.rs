@@ -1,8 +1,8 @@
 // #![feature(portable_simd)]
 
 use anyhow::Result;
-use camera_merger::{Camera, CameraBuilder, CameraConfig, CameraOperator, ImageReceiver, Start, Stop};
-use std::{ thread, time::Duration};
+use camera_merger::{Camera, CameraBuilder, CameraConfig, CameraOperator, ImageReceiver, RtSync};
+use std::{thread, time::Duration};
 
 fn main() -> Result<()> {
     let config = CameraConfig::from_file("CamConfig.toml")?;
