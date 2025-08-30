@@ -2,10 +2,12 @@ use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 // use std::simd::{num::SimdUint, Simd};
 use opencv::core::{Mat, MatTraitConst, Size};
-use tract_onnx::prelude::Tensor;
+use tract_onnx::prelude::{Datum, Tensor};
 use tract_onnx::tract_core::ndarray::Array4;
 
 use opencv::imgproc;
+
+use crate::interpreter::pixel_conversion::FromPixel;
 
 #[derive(Default)]
 pub struct MatConverter {
@@ -35,32 +37,34 @@ impl MatConverter {
         )?;
         Ok(())
     }
-    pub fn mats_to_tensor(&mut self, mats: &Vec<Mat>) -> Result<Vec<Tensor>> {
+    pub fn mats_to_tensor<P>(&mut self, mats: &Vec<Mat>) -> Result<Vec<Tensor>> 
+    where 
+        P : FromPixel + Clone + Default + Datum,
+    {
         let (h, w) = (640, 640); // pixel size
         let dimensions = h * w * 3;
         let mut chw_vec = Vec::new();
-        let mut chw_data = vec![0.0; dimensions];
         for mat in mats.iter() {
             self.resize_tensor(mat)?;
             self.recolor_to_rgb()?;
             let data = self.rgb.data();
-            let data_slices: &[u8] = unsafe { std::slice::from_raw_parts(data, h * w * 3) };
+            let data_slices: &[u8] = unsafe { std::slice::from_raw_parts(data, dimensions) };
+            let mut chw_data = vec![P::default(); dimensions];
             for c in 0..3 {
                 for y in 0..h {
                     for x in 0..w {
                         let hwc_idx = (y * w + x) * 3 + c;
                         let chw_idx = c * (h * w) + (y * w + x);
-                        chw_data[chw_idx] = data_slices[hwc_idx] as f32 / 255.0;
+                        chw_data[chw_idx] = P::from_pixel(data_slices[hwc_idx]);
                     }
                 }
             }
-            chw_vec.push(chw_data.clone());
+            chw_vec.push(chw_data);
         }
-
-        let array: Vec<Tensor> = chw_vec
-            .into_par_iter()
-            .map(|chw| Array4::from_shape_vec((1, 3, h, w), chw).unwrap().into())
-            .collect();
+        let mut array = Vec::new();
+        for arry in chw_vec{
+            array.push(Array4::from_shape_vec((1,3,h,w), arry)?.into());
+        }
 
         Ok(array.into())
     }
