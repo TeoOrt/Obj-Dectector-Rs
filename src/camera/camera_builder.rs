@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use opencv::highgui;
 use opencv::videoio::{CAP_ANY, VideoCapture};
 use opencv::{prelude::*, videoio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 #[derive(Debug, Default)]
 pub struct CameraBuilder {
@@ -34,7 +34,7 @@ impl CameraBuilder {
 
 /// Constructor
 impl CameraBuilder {
-    pub fn build(self) -> Result<Camera> {
+    pub fn build(self, tx : Sender<Mat>) -> Result<Camera> {
         let def_key = DisplayWindow::default().quit_key;
         let display_window = DisplayWindow {
             name: self.display_window.unwrap_or_default(),
@@ -55,6 +55,7 @@ impl CameraBuilder {
         let inner = super::CameraInner {
             display_window,
             camera,
+            tx
         };
         Ok(Camera {
             inner: Arc::new(Mutex::new(inner)),

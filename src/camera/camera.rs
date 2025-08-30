@@ -1,10 +1,9 @@
 use anyhow::Result;
 use opencv::{
     core::Mat,
-    highgui,
     videoio::{VideoCapture, VideoCaptureTrait},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 #[derive(Debug)]
 pub struct DisplayWindow {
@@ -24,6 +23,7 @@ impl Default for DisplayWindow {
 pub struct CameraInner {
     pub camera: VideoCapture,
     pub display_window: DisplayWindow,
+    pub tx :Sender<Mat>
 }
 
 #[derive(Clone)]
@@ -35,12 +35,8 @@ impl CameraInner {
     pub fn get_frame(&mut self) -> Result<Mat> {
         let mut frame = Mat::default();
         self.camera.read(&mut frame)?;
+        self.tx.send(frame.clone())?;
         Ok(frame.clone())
-    }
-    pub fn display_video(&mut self, frame: &Mat) -> Result<char> {
-        highgui::imshow(&self.display_window.name, frame)?;
-        let key_pressed = highgui::wait_key(1)? as u32;
-        Ok(char::from_u32(key_pressed.into()).unwrap_or_default())
     }
 }
 
