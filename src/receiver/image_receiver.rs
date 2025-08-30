@@ -43,7 +43,7 @@ impl ImageReceiver {
             let frame = rx.recv()?;
             buffer.push(frame);
 
-            if buffer.len() == 16 {
+            if buffer.len() == 5{
                 let tensor = mat_converter.mats_to_tensor::<u8>(&buffer)?;
                 predictor.interpret_message(&model, tensor)?;
                 eprintln!("We are sending data");
