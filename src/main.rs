@@ -1,8 +1,8 @@
 // #![feature(portable_simd)]
 
 use anyhow::Result;
-use camera_merger::{display_video, Camera, CameraBuilder, CameraConfig, CameraOperator, ImageReceiver, RtSync};
-use std::{sync::mpsc, thread, time::Duration};
+use camera_merger::{display_video, Camera, CameraBuilder, CameraConfig, CameraOperator, ImageReceiver, RtSync, MessageDist};
+use std::sync::mpsc;
 
 fn main() -> Result<()> {
     let config = CameraConfig::from_file("CamConfig.toml")?;
@@ -30,7 +30,6 @@ fn main() -> Result<()> {
     operator.start();
     reader.start();
     display_video(rx);
-    thread::sleep(Duration::new(60, 0));
     operator.stop();
     reader.stop();
     Ok(())

@@ -1,23 +1,25 @@
 use crate::interpreter::support::SimpleFlan;
-use crate::{HrtProfiler, Profile, RtSync, ThreadOperation};
+use crate::{HrtProfiler, Profile, RtSync};
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::sync::{Arc, Mutex, mpsc::Sender};
-use std::thread::JoinHandle;
 use tract_onnx::prelude::tvec;
 use tract_onnx::prelude::{IntoTensor, Tensor};
+use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct TensorPredictor {
-    sync: Arc<Mutex<ThreadOperation>>,
-    op_tr: Vec<JoinHandle<()>>,
-    tx: Option<Sender<()>>,
+    // sync: Arc<Mutex<ThreadOperation>>,
+    // op_tr: Vec<JoinHandle<()>>,
+    // tx: Option<Sender<()>>,
+    profilers : HashMap<String,HrtProfiler>
 }
 
 impl TensorPredictor {
-    // pub fn interpret_message(&mut self, model : &Session<'static>, tensor : Tensor) -> Result<()>{
+    fn get_profiler(&mut self, name:&str)-> &mut HrtProfiler{
+        self.profilers.entry(name.to_string()).or_insert_with(HrtProfiler::default)
+    }
     pub fn interpret_message(&mut self, model: &SimpleFlan, tensor: Vec<Tensor>) -> Result<()> {
-        let mut prof = HrtProfiler::default();
+        let prof = self.get_profiler("MsgInterpreter");
         prof.start();
         // Feeding a vec of 16 frames
         let _: Vec<_> = tensor
@@ -29,8 +31,8 @@ impl TensorPredictor {
                     .ok()
             })
             .collect();
+
         prof.stop_and_record();
-        println!("{:?}", prof.get_stats());
         Ok(())
     }
 }

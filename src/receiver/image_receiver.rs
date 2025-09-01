@@ -1,5 +1,5 @@
 use crate::{
-    MatConverter, RtSync, TensorPredictor, ThreadOperation, open_onnx_model, wait_for_start_or_stop,
+    open_onnx_model, wait_for_start_or_stop, MatConverter, MessageDist, RtSync, TensorPredictor, ThreadOperation
 };
 use anyhow::Result;
 use opencv::prelude::*;
@@ -14,6 +14,7 @@ use std::thread::JoinHandle;
 pub struct ImageReceiver {
     tx: Option<Sender<Mat>>, // no used
     sync: Arc<Mutex<ThreadOperation>>,
+    event_sender : Arc<MessageDist>,
     op_tr: Vec<JoinHandle<()>>,
 }
 
@@ -43,7 +44,7 @@ impl ImageReceiver {
             let frame = rx.recv()?;
             buffer.push(frame);
 
-            if buffer.len() == 5{
+            if buffer.len() == 16{
                 let tensor = mat_converter.mats_to_tensor::<u8>(&buffer)?;
                 predictor.interpret_message(&model, tensor)?;
                 eprintln!("We are sending data");

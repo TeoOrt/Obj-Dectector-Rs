@@ -1,6 +1,6 @@
-use std::time::{Duration, Instant};
+use std::{fmt::Debug, time::{Duration, Instant}};
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Clone,Copy)]
 pub struct ProfileStats {
     pub avg_stops: u128,
     pub min_stop: u128,
@@ -56,3 +56,18 @@ impl Profile for HrtProfiler {
         }
     }
 }
+
+impl Debug for ProfileStats{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Avg Time : {}us\nMin Time: {}us\nMax Time: {}us", self.avg_stops , self.min_stop, self.max_stop)
+    }
+
+}
+
+impl Drop for HrtProfiler {
+    fn drop(&mut self){
+        println!("Profiler finished\n {:?}" , self.get_stats())
+    }
+}
+
+
