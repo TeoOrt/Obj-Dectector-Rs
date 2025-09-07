@@ -1,6 +1,7 @@
+#![allow(unused)]
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use onnxruntime::{GraphOptimizationLevel, environment::Environment, session::SessionBuilder};
+use onnxruntime::{GraphOptimizationLevel, environment::Environment};
 use std::path::Path;
 use tract_onnx::prelude::*;
 
@@ -23,13 +24,12 @@ pub fn open_onnx_model<P: AsRef<Path>>(path: P) -> Result<SimpleFlan> {
     }
     let model = tract_onnx::onnx()
         .model_for_path(path)?
-        .with_input_fact(0, 
-            InferenceFact::dt_shape(f32::datum_type(), tvec!(1,3,640,640))
-            )?
+        .with_input_fact(
+            0,
+            InferenceFact::dt_shape(f32::datum_type(), tvec!(1, 3, 640, 640)),
+        )?
         .into_optimized()?
         .into_runnable()?;
-    // let sesh = ENV.new_session_builder()?.with_optimization_level(GraphOptimizationLevel::All)?.with_number_threads(8)?.with_model_from_file("yolov5s.onnx")?;
-    // Ok(sesh)
     Ok(model)
 }
 

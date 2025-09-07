@@ -1,17 +1,17 @@
-use crate::DisplayWindow;
+use crate::EventServer;
 
 use super::camera::Camera;
 use anyhow::{Context, Result};
 use opencv::highgui;
 use opencv::videoio::{CAP_ANY, VideoCapture};
 use opencv::{prelude::*, videoio};
-use std::sync::{Arc, Mutex, mpsc::Sender};
+use std::sync::{Arc, Mutex};
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct CameraBuilder {
     video_idx: Option<i32>,
     display_window: Option<Box<str>>,
-    quit_key: Option<char>,
+    event_server: Arc<EventServer>,
 }
 
 /// Builder methods
@@ -26,21 +26,15 @@ impl CameraBuilder {
         self.display_window = Some(name_str.into_boxed_str());
         Ok(self)
     }
-    pub fn with_quit_key(mut self, char_c: char) -> Self {
-        self.quit_key = Some(char_c);
+    pub fn with_event_server(mut self, event_server: Arc<EventServer>) -> Self {
+        self.event_server = event_server;
         self
     }
 }
 
 /// Constructor
 impl CameraBuilder {
-    pub fn build(self, tx : Sender<Mat>) -> Result<Camera> {
-        let def_key = DisplayWindow::default().quit_key;
-        let display_window = DisplayWindow {
-            name: self.display_window.unwrap_or_default(),
-            quit_key: self.quit_key.unwrap_or_else(||def_key)
-        };
-
+    pub fn build(self) -> Result<Camera> {
         let camera = VideoCapture::new(self.video_idx.unwrap(), CAP_ANY).with_context(|| {
             format!(
                 "Failed to open camera index {} check dev",
@@ -53,14 +47,12 @@ impl CameraBuilder {
         }
 
         let inner = super::CameraInner {
-            display_window,
+            event_server: self.event_server,
             camera,
-            tx
+            mat: Box::new(Mat::default()),
         };
         Ok(Camera {
             inner: Arc::new(Mutex::new(inner)),
         })
     }
 }
-
-

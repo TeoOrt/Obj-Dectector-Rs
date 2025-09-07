@@ -1,8 +1,8 @@
+use super::decode_dev_number;
 use anyhow::{Context, Result};
 use config::{Config, File};
 use serde::Deserialize;
 use std::path::Path;
-use super::decode_dev_number;
 
 #[derive(Debug, Deserialize)]
 pub struct CameraConfig {
@@ -33,22 +33,20 @@ impl CameraConfig {
     }
 }
 
-
 // -- Setters
-impl CameraConfig{
-    pub fn add_cameras(&mut self,list_of_cameras:Vec<String>) {
-        for cameras in list_of_cameras{
+impl CameraConfig {
+    pub fn add_cameras(&mut self, list_of_cameras: Vec<String>) {
+        for cameras in list_of_cameras {
             self.device.push(cameras);
         }
     }
-    pub fn remove_cameras(&mut self,camera :String){
-        self.device.retain(|dev| dev.as_str()!=camera.as_str());
+    pub fn remove_cameras(&mut self, camera: String) {
+        self.device.retain(|dev| dev.as_str() != camera.as_str());
     }
 }
 
 // -- Getters
-impl CameraConfig{
-
+impl CameraConfig {
     pub fn get_video_device_list(self) -> Result<Vec<i32>> {
         let res: Vec<i32> = self
             .device

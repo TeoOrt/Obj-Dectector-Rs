@@ -1,93 +1,87 @@
-use crate::{
-    open_onnx_model, wait_for_start_or_stop, MatConverter, MessageDist, RtSync, TensorPredictor, ThreadOperation
-};
+use crate::{ChannelID, EventServer, MatConverter, Message, TensorPredictor, open_onnx_model};
 use anyhow::Result;
-use opencv::prelude::*;
-use std::sync::mpsc;
-use std::sync::{
-    Arc, Mutex,
-    mpsc::{Receiver, Sender},
+use crossbeam::channel::{Receiver, unbounded};
+use opencv::core::Mat;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+// use opencv::prelude::*;
+use std::{
+    sync::Arc,
+    thread::{self, JoinHandle},
 };
-use std::thread;
-use std::thread::JoinHandle;
 
 pub struct ImageReceiver {
-    tx: Option<Sender<Mat>>, // no used
-    sync: Arc<Mutex<ThreadOperation>>,
-    event_sender : Arc<MessageDist>,
-    op_tr: Vec<JoinHandle<()>>,
+    sync_recv: Receiver<Message>,
+    #[allow(unused)]
+    event_server: Arc<EventServer>,
+    frame_receivers: Vec<Receiver<Message>>,
+    threads: Vec<JoinHandle<()>>,
 }
 
-/// Getters
 impl ImageReceiver {
-    pub fn get_transmitter(&self) -> Sender<Mat> {
-        match &self.tx {
-            Some(tx) => tx.clone(),
-            None => panic!("Transmitter called before  starting receiver thread"),
-        }
-    }
-}
-
-/// Main functions
-impl ImageReceiver {
-    fn run_loop(rx: Receiver<Mat>, sync: Arc<Mutex<ThreadOperation>>) -> Result<()> {
+    fn process_ml_algo(
+        sync_recv: Receiver<Message>,
+        frame_receivers: Vec<Receiver<Message>>,
+    ) -> Result<()> {
         let mut mat_converter = MatConverter::default();
-        let mut buffer = Vec::new();
-        let model = open_onnx_model("yolov5s.onnx")?;
-        let mut predictor = TensorPredictor::default();
-        buffer.reserve(20);
-        loop {
-            match *sync.lock().unwrap() {
-                ThreadOperation::STOP => break,
-                _ => (),
-            };
-            let frame = rx.recv()?;
-            buffer.push(frame);
+        let simplepan = open_onnx_model("yolov5s.onnx")?;
+        let mut ml_processor = TensorPredictor::default();
+        while !matches!(sync_recv.recv()?, Message::Start) {} // waiting for start message
 
-            if buffer.len() == 16{
-                let tensor = mat_converter.mats_to_tensor::<u8>(&buffer)?;
-                predictor.interpret_message(&model, tensor)?;
-                eprintln!("We are sending data");
-                buffer.clear();
+        loop {
+            let messages: Vec<Mat> = frame_receivers
+                .iter()
+                .filter_map(|recv| {
+                    let message = recv.recv().unwrap();
+                    match message {
+                        Message::Frame(mat) => Some(mat),
+                        _ => None,
+                    }
+                })
+                .collect();
+            println!("Size is {}", messages.len());
+            let tensors = mat_converter.mats_to_tensor::<u8>(&messages)?;
+            let _ = ml_processor.interpret_message(&simplepan, tensors)?;
+            match sync_recv.try_recv() {
+                Ok(received) => {
+                    if matches!(received, Message::Stop) {
+                        break;
+                    }
+                }
+                _ => continue,
             }
         }
+
         Ok(())
     }
-    fn process_frame(&mut self) -> Result<()> {
-        let (tx, rx) = mpsc::channel();
-        self.tx = Some(tx);
-        let sync_ptr = self.sync.clone();
-        self.op_tr.push(thread::spawn(move || {
-            wait_for_start_or_stop(sync_ptr.clone());
-            ImageReceiver::run_loop(rx, sync_ptr.clone()).unwrap();
+}
+
+impl ImageReceiver {
+    fn process_camera_frames(&mut self) -> Result<()> {
+        let receiver_list = std::mem::take(&mut self.frame_receivers);
+        let event_ptr = self.sync_recv.clone();
+        self.threads.push(thread::spawn(move || {
+            ImageReceiver::process_ml_algo(event_ptr.clone(), receiver_list).unwrap();
         }));
         Ok(())
     }
 }
 
-impl RtSync for ImageReceiver {
-    fn start(&mut self) {
-        *self.sync.lock().unwrap() = ThreadOperation::START;
-    }
-    fn stop(&mut self) {
-        *self.sync.lock().unwrap() = ThreadOperation::STOP;
-        for th in self.op_tr.drain(..) {
-            th.join().unwrap();
-        }
-    }
-}
-
 /// Constructor
 impl ImageReceiver {
-    pub fn new() -> Self {
+    pub fn new(event_server: Arc<EventServer>, frame_receivers: Vec<Receiver<Message>>) -> Self {
+        let (tx, sync_recv) = unbounded();
+        event_server
+            .register_msg(ChannelID::Interpreter, tx)
+            .unwrap();
         Self {
-            tx: None,
-            sync: Arc::new(Mutex::new(ThreadOperation::default())),
-            op_tr: Vec::new(),
+            sync_recv,
+            event_server,
+            frame_receivers,
+            threads: Vec::new(),
         }
     }
-    pub fn initialze(&mut self) -> &Self {
-        self.process_frame().unwrap();
-        self
+
+    pub fn initialze(&mut self) {
+        self.process_camera_frames().unwrap();
     }
 }

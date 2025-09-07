@@ -3,7 +3,9 @@ use opencv::{
     core::Mat,
     videoio::{VideoCapture, VideoCaptureTrait},
 };
-use std::sync::{Arc, Mutex, mpsc::Sender};
+use std::sync::{Arc, Mutex};
+
+use crate::{ChannelID, EventServer, Message};
 
 #[derive(Debug)]
 pub struct DisplayWindow {
@@ -22,8 +24,8 @@ impl Default for DisplayWindow {
 
 pub struct CameraInner {
     pub camera: VideoCapture,
-    pub display_window: DisplayWindow,
-    pub tx :Sender<Mat>
+    pub event_server: Arc<EventServer>,
+    pub mat: Box<Mat>,
 }
 
 #[derive(Clone)]
@@ -33,16 +35,13 @@ pub struct Camera {
 
 impl CameraInner {
     pub fn get_frame(&mut self) -> Result<Mat> {
-        let mut frame = Mat::default();
-        self.camera.read(&mut frame)?;
-        self.tx.send(frame.clone())?;
-        Ok(frame.clone())
-    }
-}
-
-/// Getters
-impl CameraInner {
-    pub fn get_display_name(self) -> String {
-        String::from(self.display_window.name)
+        self.camera.read(&mut (*self.mat))?;
+        // sending back to display
+        self.event_server.send(
+            &ChannelID::WindowDisplay,
+            Message::Frame(*(self.mat.clone())),
+        );
+        // Ok(frame)
+        Ok(*(self.mat.clone()))
     }
 }

@@ -1,94 +1,97 @@
-
-
-
+use anyhow::Result;
+use crossbeam::channel::Sender;
 use crossbeam_skiplist::SkipMap;
 use opencv::prelude::Mat;
-use crossbeam::channel::{Sender };
-use anyhow::Result;
 
-#[derive(Debug, Clone, PartialEq , Eq, Ord, PartialOrd, Hash)]
-pub enum MessageID {
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+pub enum ChannelID {
     Camera(u32),
+    CameraStopper,
     Interpreter,
     WindowDisplay,
 }
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Message {
     Frame(Mat),
     Start,
-    Stop 
+    Stop,
 }
-
 
 #[derive(Default)]
-pub struct MessageDist{
-    registry : SkipMap<MessageID,Sender<Message>>
+pub struct EventServer {
+    registry: SkipMap<ChannelID, Sender<Message>>,
 }
 
-
-impl MessageDist{
-    pub fn register_msg(&self, id : MessageID , msg: Sender<Message>) -> Result<()>{
+impl EventServer {
+    pub fn register_msg(&self, id: ChannelID, msg: Sender<Message>) -> Result<()> {
         if let Some(_val) = self.registry.get(&id) {
-            return  Err(anyhow::anyhow!("Message ID used twice overrinding current receiver"));
+            return Err(anyhow::anyhow!(
+                "Message ID used twice overrinding current receiver"
+            ));
         }
         self.registry.insert(id, msg);
         Ok(())
     }
 
-    pub fn send(&self , id: &MessageID, msg: Message){
-        if let Some(tx) = self.registry.get(id){
+    pub fn send(&self, id: &ChannelID, msg: Message) {
+        if let Some(tx) = self.registry.get(id) {
             let _ = tx.value().send(msg);
         }
     }
-    pub fn broadcast(&self, msg: Message){
-        for entry in self.registry.iter(){
+    pub fn broadcast(&self, msg: Message) {
+        for entry in self.registry.iter() {
             entry.value().send(msg.clone()).unwrap()
         }
     }
 }
 
-
-
-
 #[test]
-fn test_message_sending(){
-    use std::thread;
+fn test_message_sending() {
     use crossbeam::channel::bounded;
+    use std::thread;
 
-    let delivery_man = MessageDist::default();
-    let (tx,rx) = bounded(2);
-    let (tx2,rx2) = bounded(2);
+    let delivery_man = EventServer::default();
+    let (tx, rx) = bounded(2);
+    let (tx2, rx2) = bounded(2);
 
     let matthew = Message::Frame(Mat::default());
 
-
-    delivery_man.register_msg(MessageID::Interpreter, tx).unwrap();
-    delivery_man.register_msg(MessageID::WindowDisplay, tx2).unwrap();
+    delivery_man
+        .register_msg(ChannelID::Interpreter, tx)
+        .unwrap();
+    delivery_man
+        .register_msg(ChannelID::WindowDisplay, tx2)
+        .unwrap();
 
     let t1 = thread::spawn(move || {
         let mut i = 0;
         while let Ok(msg) = rx.recv() {
-            assert!( i < 10);
-            if matches!(msg,Message::Stop){
+            assert!(i < 10);
+            if matches!(msg, Message::Stop) {
                 break;
             }
-            i+=1
+            i += 1
         }
     });
 
     let t2 = thread::spawn(move || {
-        assert!( rx2.recv().is_ok() );
+        assert!(rx2.recv().is_ok());
     });
 
-    for _ in 0..8{
-        delivery_man.send(&MessageID::Interpreter, matthew.clone());
+    for _ in 0..8 {
+        delivery_man.send(&ChannelID::Interpreter, matthew.clone());
     }
     delivery_man.broadcast(Message::Stop);
 
     t2.join().unwrap();
     t1.join().unwrap();
-
 }
 
+#[test]
+fn test_enums() {
+    let msg_1 = ChannelID::Camera(10);
+    let msg_2 = ChannelID::Camera(1);
 
-
+    assert!(matches!(msg_1, ChannelID::Camera(10)));
+    assert!(!matches!(msg_1, ChannelID::Camera(1)));
+}

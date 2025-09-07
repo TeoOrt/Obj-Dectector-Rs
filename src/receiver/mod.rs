@@ -1,4 +1,3 @@
-
 mod image_receiver;
 mod video_displayer;
 

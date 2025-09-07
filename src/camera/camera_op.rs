@@ -1,34 +1,40 @@
-use crate::ThreadOperation;
-use crate::{Camera, RtSync, wait_for_start_or_stop};
-use anyhow::Result;
-use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use crate::{ChannelID, EventServer, Message};
 
-use opencv::prelude::*;
+use super::Camera;
+use anyhow::Result;
+use crossbeam::channel::Receiver;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 
 pub struct CameraOperator {
     cameras: Vec<Camera>,
     thread_handles: Vec<JoinHandle<()>>,
-    operation: Arc<Mutex<ThreadOperation>>,
-    tx: Sender<Mat>,
+    event_server: Arc<EventServer>,
+    sync_recv: Receiver<Message>,
 }
 
 /// Helper functions
 impl CameraOperator {
     fn start_loop(
-        operation: Arc<Mutex<ThreadOperation>>,
         camera: Camera,
-        tx: Sender<Mat>,
+        event_server: Arc<EventServer>,
+        sync_recv: Receiver<Message>,
+        camera_id: usize,
     ) -> Result<()> {
+        while !matches!(sync_recv.recv()?, Message::Start) {} // waiting for start message
         loop {
-            match *operation.lock().unwrap() {
-                ThreadOperation::STOP => break,
-                _ => (),
-            };
             let mut cam = camera.inner.lock().unwrap();
             let frame = cam.get_frame()?;
-            tx.send(frame.clone())?;
+            event_server.send(&ChannelID::Camera(camera_id as u32), Message::Frame(frame));
+            match sync_recv.try_recv() {
+                Ok(received) => {
+                    if matches!(received, Message::Stop) {
+                        break;
+                    }
+                }
+                Err(_) => continue,
+            };
         }
         Ok(())
     }
@@ -43,17 +49,24 @@ impl CameraOperator {
         self
     }
     fn process_camera_frames(&mut self) -> Result<()> {
-        let tx = self.tx.clone();
         self.thread_handles = self
             .cameras
-            .iter()
-            .map(|camera| {
+            .par_iter()
+            .enumerate()
+            .map(|(camera_id, camera)| {
+                // this is stupid
                 let cam_clone = camera.clone();
-                let op_clone = self.operation.clone();
-                let tx_clone = tx.clone();
+                let es_ptr = self.event_server.clone();
+                let sync_ptr = self.sync_recv.clone();
                 thread::spawn(move || {
-                    wait_for_start_or_stop(op_clone.clone());
-                    CameraOperator::start_loop(op_clone, cam_clone, tx_clone).unwrap();
+                    let cam = cam_clone.clone();
+                    CameraOperator::start_loop(
+                        cam.clone(),
+                        es_ptr.clone(),
+                        sync_ptr.clone(),
+                        camera_id,
+                    )
+                    .unwrap()
                 })
             })
             .collect();
@@ -61,31 +74,34 @@ impl CameraOperator {
     }
 }
 
-/// Sync Traits
-impl RtSync for CameraOperator {
-    fn start(&mut self) {
-        *self.operation.lock().unwrap() = ThreadOperation::START;
-    }
-    fn stop(&mut self) {
-        *self.operation.lock().unwrap() = ThreadOperation::STOP;
-        for th in self.thread_handles.drain(..) {
-            th.join().unwrap();
-        }
-    }
-}
-
 /// Constructors
 impl CameraOperator {
-    pub fn new(camera_list: Vec<Camera>, tx: Sender<Mat>) -> Self {
+    pub fn new(camera_list: Vec<Camera>, event_server: Arc<EventServer>) -> Self {
+        // sync
+        let (sync_sender, sync_recv) = crossbeam::channel::unbounded();
+        event_server
+            .register_msg(ChannelID::CameraStopper, sync_sender)
+            .unwrap();
+
         Self {
             cameras: camera_list,
             thread_handles: Vec::new(),
-            operation: Arc::new(Mutex::new(ThreadOperation::default())),
-            tx,
+            event_server,
+            sync_recv,
         }
     }
     pub fn initialze(&mut self) -> &Self {
         self.process_camera_frames().unwrap();
         self
+    }
+}
+
+impl Drop for CameraOperator {
+    fn drop(&mut self) {
+        eprintln!("Joining Threads for CameraOperator");
+        for threads in self.thread_handles.drain(0..) {
+            threads.join().unwrap();
+            eprintln!("Joined thread");
+        }
     }
 }

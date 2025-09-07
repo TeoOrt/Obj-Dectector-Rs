@@ -8,15 +8,14 @@ use opencv::{
     imgproc,
 };
 use serde::Deserialize;
-use std::simd::{num::SimdUint, Simd};
-use std::{collections::BTreeMap, fs::File, path::Path };
+use std::simd::{Simd, num::SimdUint};
+use std::{collections::BTreeMap, fs::File, path::Path};
 use tract_onnx::{prelude::*, tract_core::ndarray::Array4};
 
 static LENGHT: usize = 640;
 static WIDTH: usize = 640;
 static DIMENSIONS: usize = 3;
 static IMAGE_DIM: usize = LENGHT * WIDTH * DIMENSIONS;
-
 
 pub struct VidObjDectector {
     pub labels: BTreeMap<u32, String>,
@@ -125,7 +124,7 @@ impl VidObjDectector {
 
         for (chunk, out_chunk) in chunks.zip(chw_data.chunks_exact_mut(8)) {
             let vals = Simd::<u8, 8>::from_slice(chunk);
-            let vals_f32 =vals.cast::<f32>() * sscale;
+            let vals_f32 = vals.cast::<f32>() * sscale;
             vals_f32.copy_to_slice(out_chunk);
         }
 
@@ -136,7 +135,6 @@ impl VidObjDectector {
         Ok(array.into())
     }
 }
-
 
 // impl ImageProcessor for VidObjDectector {
 //     fn infer_with_model(&mut self, cam: &CameraFrame) -> Result<Tensor> {
@@ -149,9 +147,9 @@ impl VidObjDectector {
 //                 ));
 //             }
 //         };
-//         let result_tensor = self.model.run(tvec!(input.into()))?; 
+//         let result_tensor = self.model.run(tvec!(input.into()))?;
 //         let ve: &Tensor = &result_tensor[0];
-//         let output_array = ve.to_array_view::<f32>().expect("Nope"); 
+//         let output_array = ve.to_array_view::<f32>().expect("Nope");
 //         let ( _, num_preds, num_attrs) = output_array.dim();
 //         for pred in output_array.index_axis(ndarray::Axis(0), 0).outer_iter(){
 //         }

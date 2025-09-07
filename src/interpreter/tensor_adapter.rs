@@ -1,5 +1,4 @@
 use anyhow::Result;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 // use std::simd::{num::SimdUint, Simd};
 use opencv::core::{Mat, MatTraitConst, Size};
 use tract_onnx::prelude::{Datum, Tensor};
@@ -37,9 +36,9 @@ impl MatConverter {
         )?;
         Ok(())
     }
-    pub fn mats_to_tensor<P>(&mut self, mats: &Vec<Mat>) -> Result<Vec<Tensor>> 
-    where 
-        P : FromPixel + Clone + Default + Datum,
+    pub fn mats_to_tensor<P>(&mut self, mats: &Vec<Mat>) -> Result<Vec<Tensor>>
+    where
+        P: FromPixel + Clone + Default + Datum,
     {
         let (h, w) = (640, 640); // pixel size
         let dimensions = h * w * 3;
@@ -62,8 +61,8 @@ impl MatConverter {
             chw_vec.push(chw_data);
         }
         let mut array = Vec::new();
-        for arry in chw_vec{
-            array.push(Array4::from_shape_vec((1,3,h,w), arry)?.into());
+        for arry in chw_vec {
+            array.push(Array4::from_shape_vec((1, 3, h, w), arry)?.into());
         }
 
         Ok(array.into())
