@@ -1,6 +1,7 @@
 // #![feature(portable_simd)]
 
 use anyhow::Result;
+use camera_merger::labels::get_labels;
 use camera_merger::{
     Camera, CameraBuilder, CameraConfig, CameraOperator, ChannelID, EventServer, ImageReceiver,
     Message, display_video,
@@ -14,6 +15,9 @@ static GLOBAL_CHANNEL_SIZE: usize = 1024; // 1kb
 fn main() -> Result<()> {
     let config = CameraConfig::from_file("CamConfig.toml")?;
     let event_bus_server = Arc::new(EventServer::default());
+
+    let label_path = "Pylearn/data/coco.yaml";
+    let labels = get_labels(label_path)?;
 
     let cameras: Vec<Camera> = config
         .get_video_device_list()?
