@@ -2,8 +2,7 @@ use crate::{ChannelID, EventServer, MatConverter, Message, TensorPredictor, open
 use anyhow::Result;
 use crossbeam::channel::{Receiver, unbounded};
 use opencv::core::Mat;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-// use opencv::prelude::*;
+
 use std::{
     sync::Arc,
     thread::{self, JoinHandle},
