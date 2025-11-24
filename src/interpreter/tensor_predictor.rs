@@ -104,43 +104,43 @@ impl TensorPredictor {
             })
             .collect();
         eprintln!("Size of output is {}", outputs.len());
-        for output in outputs {
-            let data = output.to_array_view::<f32>()?.into_dimensionality::<Ix3>();
-            // let dectect = decode_output(data);
-            let path = "Pylearn/data/coco.yaml";
-            let labels = get_labels(path).unwrap();
-            let mut detections = Vec::new();
-            for row in data.iter {
-                let conf = row[4];
-                if conf > 0.25 {
-                    let (class_id, class_score) = row
-                        .iter()
-                        .skip(5)
-                        .enumerate()
-                        .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                        .unwrap();
-                    let final_conf = conf * class_score;
-                    if final_conf > 0.25 {
-                        let label = labels.names.get(&(class_id as i16)).unwrap();
-                        detections.push(Dectection {
-                            label: label.clone().into_boxed_str(),
-                            confidence: final_conf,
-                            bbox: (row[0] as i32, row[1] as i32, row[2] as i32, row[3] as i32),
-                        });
-                    }
-                }
-            }
-            let img = imgcodecs::imread("download.jpeg", imgcodecs::IMREAD_COLOR).unwrap();
-            let res = draw_detections(img, &detections)?;
-            highgui::imshow("Dectections", &res).unwrap();
-            highgui::wait_key(0).unwrap();
-            thread::sleep(Duration::new(4, 0));
-        }
-        let img = imgcodecs::imread("download.jpeg", imgcodecs::IMREAD_COLOR).unwrap();
-        highgui::imshow("Dectections", &img).unwrap();
-        highgui::wait_key(0).unwrap();
-
-        prof.stop_and_record();
+        // for output in outputs {
+        //     let data = output.to_array_view::<f32>()?.into_dimensionality::<Ix3>();
+        //     // let dectect = decode_output(data);
+        //     let path = "Pylearn/data/coco.yaml";
+        //     let labels = get_labels(path).unwrap();
+        //     let mut detections = Vec::new();
+        //     for row in data.iter {
+        //         let conf = row[4];
+        //         if conf > 0.25 {
+        //             let (class_id, class_score) = row
+        //                 .iter()
+        //                 .skip(5)
+        //                 .enumerate()
+        //                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+        //                 .unwrap();
+        //             let final_conf = conf * class_score;
+        //             if final_conf > 0.25 {
+        //                 let label = labels.names.get(&(class_id as i16)).unwrap();
+        //                 detections.push(Dectection {
+        //                     label: label.clone().into_boxed_str(),
+        //                     confidence: final_conf,
+        //                     bbox: (row[0] as i32, row[1] as i32, row[2] as i32, row[3] as i32),
+        //                 });
+        //             }
+        //         }
+        //     }
+        //     let img = imgcodecs::imread("download.jpeg", imgcodecs::IMREAD_COLOR).unwrap();
+        //     let res = draw_detections(img, &detections)?;
+        //     highgui::imshow("Dectections", &res).unwrap();
+        //     highgui::wait_key(0).unwrap();
+        //     thread::sleep(Duration::new(4, 0));
+        // }
+        // let img = imgcodecs::imread("download.jpeg", imgcodecs::IMREAD_COLOR).unwrap();
+        // highgui::imshow("Dectections", &img).unwrap();
+        // highgui::wait_key(0).unwrap();
+        //
+        // prof.stop_and_record();
         Ok(())
     }
 

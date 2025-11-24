@@ -21,7 +21,7 @@ pub trait Profile {
 pub struct HrtProfiler {
     start: Option<Instant>,
     stop: Option<Instant>,
-    time_stamps: Vec<Duration>,
+    time_stamps: Vec<Duration>, // this needs to be changed to a ring buffer
 }
 
 impl Profile for HrtProfiler {
@@ -67,11 +67,5 @@ impl Debug for ProfileStats {
             "Avg Time : {}us\nMin Time: {}us\nMax Time: {}us",
             self.avg_stops, self.min_stop, self.max_stop
         )
-    }
-}
-
-impl Drop for HrtProfiler {
-    fn drop(&mut self) {
-        println!("Profiler finished\n {:?}", self.get_stats())
     }
 }
