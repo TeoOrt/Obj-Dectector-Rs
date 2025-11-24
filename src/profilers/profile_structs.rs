@@ -1,7 +1,9 @@
 use std::{
-    fmt::Debug,
-    time::{Duration, Instant},
+    fmt::Debug,  time::{Duration, Instant}
 };
+
+use plotpy::{Histogram, Plot};
+use tract_onnx::tract_hir::internal::num_integer::Integer;
 
 #[derive(Clone, Copy)]
 pub struct ProfileStats {
@@ -22,6 +24,37 @@ pub struct HrtProfiler {
     start: Option<Instant>,
     stop: Option<Instant>,
     time_stamps: Vec<Duration>,
+}
+
+impl HrtProfiler {
+    fn histogram_counts(data: &[f64], bins: usize) -> Vec<usize> {
+    let min = data.iter().cloned().fold(f64::INFINITY, f64::min);
+    let max = data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let bin_width = (max - min) / bins as f64;
+    let mut counts = vec![0; bins];
+    for &value in data {
+        let mut idx = ((value - min) / bin_width) as usize;
+        if idx >= bins { idx = bins - 1; }
+        counts[idx] += 1;
+    }
+    counts
+}
+
+    pub fn plot_histogram(&self) {
+        let mut histogram = Histogram::new();
+        // let mut sorted_durations = self.time_stamps.clone();
+        // sorted_durations.sort();
+        // let duration_ranges: Vec<Vec<Duration>> =  sorted_durations.s
+        // let range =  self.time_stamps.iter().map(|ts|{   
+        //     let rounded_labels = ts.as_micros().div_floor(100).mul(100);
+        //     return String::from(rounded_labels);}
+        // ).collect();
+        // histogram.draw(values, labels);
+        // histogram.draw(self.time_stamps, self.time_stamps.iter().map(|value| return String::from(value).collect()));
+        let mut plot = Plot::new();
+        plot.set_title("Sine Wave")
+            .save("~/Desktop/Obj-Dectector-Rs/sine_wave.png").unwrap();
+    }
 }
 
 impl Profile for HrtProfiler {
@@ -70,8 +103,3 @@ impl Debug for ProfileStats {
     }
 }
 
-impl Drop for HrtProfiler {
-    fn drop(&mut self) {
-        println!("Profiler finished\n {:?}", self.get_stats())
-    }
-}

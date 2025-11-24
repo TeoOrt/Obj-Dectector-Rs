@@ -2,11 +2,11 @@
 
 use std::{thread, time::Duration};
 
-use camera_merger::profilers::profile_structs::{HrtProfiler, Profile};
+use camera_merger::{HrtProfiler,Profile};
 
 #[test]
 fn start_stop() {
-    let mut  strw = HrtProfiler::new();
+    let mut strw= HrtProfiler::default();
     let sleep_val_ns : u32= 990000;
     let sleep_val_mls : u128= sleep_val_ns as u128 / 1000;
 
@@ -21,6 +21,7 @@ fn start_stop() {
     assert_ne!(stats.min_stop , 0);
     assert!(stats.avg_stops < sleep_val_mls + 100);
     assert!(stats.avg_stops > sleep_val_mls - 100 );
+    strw.plot_histogram();
 }
 
 
