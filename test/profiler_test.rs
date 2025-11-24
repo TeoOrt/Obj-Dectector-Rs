@@ -1,28 +1,24 @@
+use std::{rc::Rc, thread, time::Duration};
 
-
-use std::{thread, time::Duration};
-
-use camera_merger::{HrtProfiler,Profile};
+use camera_merger::{HrtProfiler, Profile, plot_histogram};
 
 #[test]
 fn start_stop() {
-    let mut strw= HrtProfiler::default();
-    let sleep_val_ns : u32= 990000;
-    let sleep_val_mls : u128= sleep_val_ns as u128 / 1000;
+    let mut strw = HrtProfiler::default();
+    let sleep_val_ns: u32 = 990000;
+    let sleep_val_mls: u128 = sleep_val_ns as u128 / 1000;
 
     let _ = strw.start();
-    for _ in 0..1000{
+    for _ in 0..1000 {
         thread::sleep(Duration::new(0, sleep_val_ns));
         strw.stop_and_record();
     }
     let stats = strw.get_stats();
 
     assert_ne!(stats.max_stop, 0);
-    assert_ne!(stats.min_stop , 0);
+    assert_ne!(stats.min_stop, 0);
     assert!(stats.avg_stops < sleep_val_mls + 100);
-    assert!(stats.avg_stops > sleep_val_mls - 100 );
-    strw.plot_histogram();
+    assert!(stats.avg_stops > sleep_val_mls - 100);
+    let ptr = Rc::new(strw);
+    plot_histogram(ptr);
 }
-
-
-

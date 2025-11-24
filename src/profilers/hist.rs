@@ -1,46 +1,39 @@
+use std::rc::Rc;
 
+use crate::{Profile, labels};
 
-pub struct ProfilerHistogram{
-    labels : Vec<String>,
-    data : Vec<u128>,
-    data_out : Vec<usize>,
-    bin :  usize
+pub struct ProfilerHistogram {
+    profiler: Rc<dyn Profile>,
+    labels: Vec<String>,
+    bins: usize,
+    data: Vec<u128>,
 }
 
-
-impl ProfilerHistogram{
-    pub fn new(data : &Vec<u128>) -> ProfilerHistogram{
-        ProfilerHistogram { labels: Vec::new(), data : data.clone(), data_out: Vec::new(), bin : 10 }
+impl ProfilerHistogram {
+    pub fn new(profiler: Rc<dyn Profile>, data: Vec<u128>) -> Self {
+        Self {
+            profiler,
+            labels: Vec::new(),
+            bins: 10,
+            data,
+        }
     }
-
-    pub fn bin(&mut self, step_size : usize)->&ProfilerHistogram{
-        self.bin = step_size;
+    pub fn bin(&mut self, step_size: usize) -> &ProfilerHistogram {
+        self.bins = step_size;
         self
     }
-    pub fn compute(&self)->(Vec<usize> , Vec<String>)
-    {
-        let min = self.data.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max = self.data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let bin_width = (max - min) / bins as f64;
-
-        let mut counts = vec![0; bins];
-        let mut labels = Vec::new();
-
-        for i in 0..bins {
-            let start = min + (i as f64) * bin_width;
-            let end = start + bin_width;
-            labels.push(format!("{:.2}–{:.2}", start, end));
-        }
-
+    pub fn compute(&self) -> Vec<usize> {
+        let stats = self.profiler.get_stats();
+        let bin_width: u128 = (stats.max_stop - stats.min_stop) / (self.bins as u128);
+        let mut counts = vec![0; self.bins];
         // fill the histogram
-        for &value in data {
-            let mut idx = ((value - min) / bin_width) as usize;
-            if idx >= bins { idx = bins - 1; }
+        for value in self.data.clone() {
+            let mut idx = ((value - stats.min_stop) / bin_width) as usize;
+            if idx >= self.bins {
+                idx = self.bins - 1;
+            }
             counts[idx] += 1;
         }
-
-        (counts, labels);
-        todo!()
+        counts
     }
-    
 }
