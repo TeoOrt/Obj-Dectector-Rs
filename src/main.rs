@@ -6,37 +6,13 @@ use camera_merger::{
     Camera, CameraBuilder, CameraConfig, CameraOperator, ChannelID, EventServer, ImageReceiver,
     Message, display_video,
 };
-use camera_merger::{HrtProfiler, Profile, plot_histogram};
 use crossbeam::channel;
 use crossbeam::channel::Receiver;
-use rand::{Rng, rng};
-use std::rc::Rc;
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
 static GLOBAL_CHANNEL_SIZE: usize = 1024; // 1kb
 
 fn main() -> Result<()> {
-    let mut strw = HrtProfiler::default();
-    let mut rng = rand::rng();
-    for _ in 0..1000 {
-        let _ = strw.start();
-        thread::sleep(Duration::new(0, rng.random_range(10000..100000)));
-        strw.stop_and_record();
-    }
-    let stats = strw.get_stats();
-
-    assert_ne!(stats.max_stop, 0);
-    assert_ne!(stats.min_stop, 0);
-    // assert!(stats.avg_stops < sleep_val_mls + 100);
-    // assert!(stats.avg_stops > sleep_val_mls - 100);
-    let ptr = Rc::new(strw);
-    plot_histogram(ptr);
-
-    if true {
-        return Ok(());
-    }
     let config = CameraConfig::from_file("CamConfig.toml")?;
     let event_bus_server = Arc::new(EventServer::default());
 
