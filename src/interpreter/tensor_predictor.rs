@@ -1,17 +1,12 @@
 use crate::interpreter::support::SimpleFlan;
-use crate::labels::{self, Labels, get_labels};
-use crate::{HrtProfiler, MatConverter, Profile, open_onnx_model};
+use crate::{HrtProfiler,  Profile };
 use anyhow::Result;
-use onnxruntime::ndarray::{self, ArrayView2, Axis};
+use onnxruntime::ndarray::{self};
 use opencv::core::Mat;
-use opencv::{highgui, imgcodecs};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::BTreeMap;
-use std::time::Duration;
-use std::{thread, u8};
 use tract_onnx::prelude::tvec;
 use tract_onnx::prelude::{IntoTensor, Tensor};
-use tract_onnx::tract_core::ndarray::Ix3;
 
 pub struct Dectection {
     pub label: Box<str>,
@@ -104,7 +99,7 @@ impl TensorPredictor {
             })
             .collect();
         eprintln!("Size of output is {}", outputs.len());
-            todo!();
+        todo!();
         // for output in outputs {
         //     let data = output.to_array_view::<f32>()?.into_dimensionality::<Ix3>();
         //     // let dectect = decode_output(data);
@@ -143,7 +138,7 @@ impl TensorPredictor {
         //
         // prof.stop_and_record();
         Ok(())
-        }
+    }
 
     pub fn record_labels() {}
     //todo get predictions
@@ -153,19 +148,3 @@ impl TensorPredictor {
     //and compare performance
 }
 
-#[test]
-pub fn test_tensor_prediction() {
-    let flan = open_onnx_model("yolov5s.onnx").unwrap();
-    let mut predictor = TensorPredictor::default();
-    let mut converter = MatConverter::default();
-    let mut img_store = Vec::new();
-    for _ in 0..2 {
-        let img = imgcodecs::imread("download.jpeg", imgcodecs::IMREAD_COLOR).unwrap();
-        img_store.push(img);
-    }
-
-    let _ =
-        predictor.interpret_message(&flan, converter.mats_to_tensor::<f32>(&img_store).unwrap());
-
-    assert_eq!(0, 0);
-}

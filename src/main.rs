@@ -17,7 +17,7 @@ fn main() -> Result<()> {
     let event_bus_server = Arc::new(EventServer::default());
 
     let label_path = "Pylearn/data/coco.yaml";
-    let labels = get_labels(label_path)?;
+    let _labels = get_labels(label_path)?;
 
     let cameras: Vec<Camera> = config
         .get_video_device_list()?
