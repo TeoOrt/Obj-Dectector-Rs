@@ -86,4 +86,3 @@ fn test_message_sending() {
     t2.join().unwrap();
     t1.join().unwrap();
 }
-

@@ -1,5 +1,5 @@
 use crate::interpreter::support::SimpleFlan;
-use crate::{HrtProfiler,  Profile };
+use crate::{HrtProfiler, Profile};
 use anyhow::Result;
 use onnxruntime::ndarray::{self};
 use opencv::core::Mat;
@@ -147,4 +147,3 @@ impl TensorPredictor {
     //maybe test it with two cameras
     //and compare performance
 }
-
