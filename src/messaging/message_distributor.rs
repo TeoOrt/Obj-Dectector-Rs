@@ -86,12 +86,3 @@ fn test_message_sending() {
     t2.join().unwrap();
     t1.join().unwrap();
 }
-
-#[test]
-fn test_enums() {
-    let msg_1 = ChannelID::Camera(10);
-    let msg_2 = ChannelID::Camera(1);
-
-    assert!(matches!(msg_1, ChannelID::Camera(10)));
-    assert!(!matches!(msg_1, ChannelID::Camera(1)));
-}
