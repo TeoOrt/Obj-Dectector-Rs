@@ -1,6 +1,7 @@
 mod hist;
 mod plot;
 mod profile_structs;
+mod profiler_hub;
 mod profiler_types;
 
 pub use plot::plot_histogram;

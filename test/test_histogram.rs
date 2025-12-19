@@ -1,6 +1,6 @@
 use anyhow::Result;
-use camera_merger::Profile;
 use camera_merger::ProfileStats;
+use camera_merger::StopWatch;
 use camera_merger::plot_histogram;
 
 use std::cell::RefCell;
@@ -14,7 +14,7 @@ struct FakeProfiler {
     max: u128,
 }
 
-impl Profile for FakeProfiler {
+impl StopWatch for FakeProfiler {
     fn get_stats(&self) -> Result<ProfileStats> {
         let fake_duration = Duration::new(0, 0);
         let min = Duration::from_micros(self.min as u64);

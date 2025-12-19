@@ -1,17 +1,17 @@
 use std::cell::RefCell;
-use std::{collections::HashMap, rc::Rc, time::Duration};
+use std::{collections::HashMap, rc::Rc};
 
-use crate::Profile;
+use crate::StopWatch;
 use anyhow::Result;
 
 pub struct ProfilerHistogram {
-    profiler: Rc<RefCell<dyn Profile>>,
+    profiler: Rc<RefCell<dyn StopWatch>>,
     bins: usize,
     data: Vec<u128>,
 }
 
 impl ProfilerHistogram {
-    pub fn new(profiler: Rc<RefCell<dyn Profile>>, data: Vec<u128>) -> Self {
+    pub fn new(profiler: Rc<RefCell<dyn StopWatch>>, data: Vec<u128>) -> Self {
         Self {
             profiler,
             bins: 10,
@@ -54,7 +54,7 @@ mod tests {
         max: u128,
     }
 
-    impl Profile for FakeProfiler {
+    impl StopWatch for FakeProfiler {
         fn get_stats(&self) -> Result<ProfileStats> {
             let fake_duration = Duration::new(0, 0);
             let min = Duration::from_micros(self.min as u64);

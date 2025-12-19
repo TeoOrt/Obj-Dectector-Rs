@@ -1,5 +1,5 @@
-use crate::Profile;
 use crate::ProfileStats;
+use crate::StopWatch;
 use anyhow::Result;
 use std::time::{Duration, Instant};
 
@@ -18,7 +18,7 @@ impl HrtProfiler {
     }
 }
 
-impl Profile for HrtProfiler {
+impl StopWatch for HrtProfiler {
     fn start(&mut self) -> Instant {
         self.start = Some(Instant::now());
         return self.start.unwrap();
@@ -36,6 +36,7 @@ impl Profile for HrtProfiler {
             Some(elapsed) => elapsed.elapsed(),
             _ => panic!("Warning No start has been set, you may have a race condition"),
         };
+
         self.time_stamps.push(elapsed);
         return elapsed;
     }

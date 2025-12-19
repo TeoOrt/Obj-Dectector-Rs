@@ -12,7 +12,7 @@ pub struct ProfileStats {
     pub max_stop: Duration,
 }
 
-pub trait Profile {
+pub trait StopWatch {
     fn start(&mut self) -> Instant; //us
     fn stop(&mut self) -> Duration; // us
     fn stop_and_record(&mut self) -> Duration; //us

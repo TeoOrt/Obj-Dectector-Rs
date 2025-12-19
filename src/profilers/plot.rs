@@ -1,4 +1,4 @@
-use crate::{Profile, profilers::hist::ProfilerHistogram};
+use crate::{StopWatch, profilers::hist::ProfilerHistogram};
 use plotters::prelude::*;
 use tract_onnx::prelude::tract_itertools::Itertools;
 
@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub fn plot_histogram(
-    profiler: Rc<RefCell<dyn Profile>>,
+    profiler: Rc<RefCell<dyn StopWatch>>,
     data: Vec<u128>,
     filename: &str,
 ) -> Result<()> {

@@ -1,5 +1,5 @@
 use crate::interpreter::support::SimpleFlan;
-use crate::{HrtProfiler, Profile};
+use crate::{HrtProfiler, StopWatch};
 use anyhow::Result;
 use onnxruntime::ndarray::{self};
 use opencv::core::Mat;
